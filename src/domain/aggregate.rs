@@ -82,6 +82,15 @@ impl Aggregate for BankAccount {
                     balance,
                 }])
             }
+            BankAccountCommand::IssueBonus {  bonus_id, amount,} => {
+                let balance = self.balance + amount;
+                Ok(vec![BankAccountEvent::IssuedBonus{
+                    amount,
+                    bonus_id,
+                    balance
+                }])
+            }
+            
         }
     }
 
@@ -102,6 +111,9 @@ impl Aggregate for BankAccount {
                 balance,
             } => {
                 self.balance = balance;
+            }
+            BankAccountEvent::IssuedBonus{bonus_id: _, amount: _, balance} => {
+                self.balance = balance
             }
         }
     }
@@ -152,6 +164,7 @@ mod aggregate_tests {
             // then we expect these results
             .then_expect_events(vec![expected]);
     }
+
 
     #[test]
     fn test_deposit_money_with_balance() {

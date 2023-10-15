@@ -2,10 +2,13 @@ use async_trait::async_trait;
 use cqrs_es::persist::GenericQuery;
 use cqrs_es::{EventEnvelope, Query, View};
 use postgres_es::PostgresViewRepository;
+use eventstore::EventData;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::domain::aggregate::BankAccount;
 use crate::domain::events::BankAccountEvent;
+use crate::eventstore_client::get_client;
 
 pub struct SimpleLoggingQuery {}
 
@@ -14,9 +17,38 @@ pub struct SimpleLoggingQuery {}
 #[async_trait]
 impl Query<BankAccount> for SimpleLoggingQuery {
     async fn dispatch(&self, aggregate_id: &str, events: &[EventEnvelope<BankAccount>]) {
+        
+        let client = get_client().unwrap();
+
+        
         for event in events {
             let payload = serde_json::to_string_pretty(&event.payload).unwrap();
+            let event_type: String;
+
+            let value: Value = serde_json::from_str(&payload).expect("Failed to parse JSON");
+
+            if let Value::Object(obj) = value {
+                let keys: Vec<String> = obj.keys().map(|key| key.to_string()).collect();
+                
+                if let Some(first_key) = keys.get(0) {
+                    event_type = first_key.clone();
+                } else {
+                    event_type = "Unknown".to_string();
+                }
+            } else {
+                event_type = "Uknown".to_string();
+            }
+
             println!("{}-{}\n{}", aggregate_id, event.sequence, payload);
+           
+            // Definte the Event Type
+            let evt = EventData::json(&event_type.to_string(), &payload).unwrap();
+
+            // Define the Stream
+            client
+            .append_to_stream(aggregate_id.to_string(), &Default::default(), evt)
+            .await
+            .unwrap();
         }
     }
 }
@@ -37,6 +69,7 @@ pub struct BankAccountView {
     account_id: Option<String>,
     balance: f64,
     written_checks: Vec<String>,
+    issued_bonuses: Vec<String>,
     ledger: Vec<LedgerEntry>,
 }
 
@@ -65,13 +98,13 @@ impl View<BankAccount> for BankAccountView {
             }
 
             BankAccountEvent::CustomerDepositedMoney { amount, balance } => {
-                self.ledger.push(LedgerEntry::new("deposit", *amount));
+                self.ledger.push(LedgerEntry::new("Deposit", *amount));
                 self.balance = *balance;
             }
 
             BankAccountEvent::CustomerWithdrewCash { amount, balance } => {
                 self.ledger
-                    .push(LedgerEntry::new("atm withdrawal", *amount));
+                    .push(LedgerEntry::new("ATM_withdrawal", *amount));
                 self.balance = *balance;
             }
 
@@ -82,6 +115,12 @@ impl View<BankAccount> for BankAccountView {
             } => {
                 self.ledger.push(LedgerEntry::new(check_number, *amount));
                 self.written_checks.push(check_number.clone());
+                self.balance = *balance;
+            }
+
+            BankAccountEvent::IssuedBonus { bonus_id, amount, balance } => {
+                self.ledger.push(LedgerEntry::new("Bonus", *amount));
+                self.issued_bonuses.push(bonus_id.clone());
                 self.balance = *balance;
             }
         }

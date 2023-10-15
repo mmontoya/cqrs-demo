@@ -20,6 +20,11 @@ pub enum BankAccountEvent {
         amount: f64,
         balance: f64,
     },
+    IssuedBonus {
+        bonus_id: String,
+        amount: f64,
+        balance: f64,
+    }
 }
 
 impl DomainEvent for BankAccountEvent {
@@ -29,6 +34,7 @@ impl DomainEvent for BankAccountEvent {
             BankAccountEvent::CustomerDepositedMoney { .. } => "CustomerDepositedMoney".to_string(),
             BankAccountEvent::CustomerWithdrewCash { .. } => "CustomerWithdrewCash".to_string(),
             BankAccountEvent::CustomerWroteCheck { .. } => "CustomerWroteCheck".to_string(),
+            BankAccountEvent::IssuedBonus { .. } => "IssuedBonus".to_string(),
         }
     }
 
