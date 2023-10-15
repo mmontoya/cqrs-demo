@@ -8,3 +8,5 @@ mod queries;
 pub mod route_handler;
 mod services;
 pub mod state;
+pub mod eventstore_connection;
+pub mod eventstore_client;

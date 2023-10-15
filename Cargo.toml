@@ -27,6 +27,7 @@ tower = "0.4"
 tower-http = "0.3"
 
 lambda_http = "0.7.3"
+eventstore = "2.2.0"
 
 [[bin]]
 name = "cqrs-demo"
